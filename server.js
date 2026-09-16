@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { decrypt, encrypt, normalizeEmail, randomToken, safeEquals, tokenHash } from './lib.js';
-import { listMessages, readMessage, testImap } from './imap.js';
+import { listMessages, listMessagesForApi, readMessage, testImap } from './imap.js';
 import { providerRouter } from './provider.js';
 import { createStore } from './storage.js';
 
@@ -218,7 +218,7 @@ app.get('/api/inbox/:token/mail/:uid', publicLimit, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-app.use('/api', providerRouter({ save, imapSettings, isAdmin, listMessages, readMessage, publicUrl }));
+app.use('/api', providerRouter({ save, imapSettings, isAdmin, listMessages, listMessagesForApi, readMessage, publicUrl }));
 app.use(express.static(path.join(root, 'public'), { maxAge: 0, index: false }));
 app.get(['/','/i/:token'], (_req, res) => res.sendFile(path.join(root, 'public', 'index.html')));
 app.use((error, _req, res, _next) => {

@@ -4,11 +4,15 @@ import { normalizeEmail, randomToken, safeEquals, tokenHash } from './lib.js';
 
 const bad = (message, status = 400) => Object.assign(new Error(message), { status });
 
-export function providerRouter({ save, imapSettings, isAdmin, listMessages, readMessage, publicUrl }) {
+export function providerRouter({ save, imapSettings, isAdmin, listMessages, listMessagesForApi, readMessage, publicUrl }) {
   const router = express.Router();
   const base = String(publicUrl).replace(/\/$/, '');
   const admin = (req, res, next) => isAdmin(req) ? next() : res.status(401).json({ error: 'Masuk sebagai admin terlebih dahulu.' });
-  const bearer = req => /^Bearer ([A-Za-z0-9_-]{20,})$/.exec(String(req.headers.authorization || ''))?.[1] || '';
+  const bearer = req => {
+    const authorization = String(req.headers.authorization || '').trim();
+    const raw = authorization.replace(/^Bearer\s+/i, '') || String(req.headers['x-auth-token'] || '').trim();
+    return /^[A-Za-z0-9_-]{20,}$/.test(raw) ? raw : '';
+  };
   const creator = (req, res, next) => {
     const state = req.state;
     if (!state.provider.tokenHash || !state.provider.passwordHash) return res.status(409).json({ error: 'Buat kunci API di panel Surat terlebih dahulu.' });
@@ -25,6 +29,11 @@ export function providerRouter({ save, imapSettings, isAdmin, listMessages, read
   };
   const alias = (inbox, settings) => inbox.address === settings.email ? null : inbox.address;
   const handle = fn => async (req, res, next) => { try { await fn(req, res); } catch (error) { next(error); } };
+  const addressForSettings = (raw, settings) => {
+    const address = normalizeEmail(raw);
+    if (address.split('@')[1] !== settings.email.split('@')[1]) throw bad('Alamat harus memakai domain email Hostinger yang terhubung.');
+    return address;
+  };
 
   router.get('/provider/settings', admin, (req, res) => {
     const state = req.state;
@@ -77,6 +86,40 @@ export function providerRouter({ save, imapSettings, isAdmin, listMessages, read
     state.inboxes.unshift(inbox);
     await save(req);
     res.status(201).json({ address, address_id: inbox.id, jwt: addressToken, inbox_url: `${base}/i/${addressToken}`, expires_at: inbox.expiresAt });
+  }));
+  router.post('/public/addUser', creator, handle(async (req, res) => {
+    const state = req.state;
+    const settings = imapSettings(req);
+    const list = Array.isArray(req.body.list) ? req.body.list : [];
+    if (!list.length) throw bad('Daftar alamat email kosong.');
+    const added = [];
+    for (const entry of list.slice(0, 50)) {
+      const address = addressForSettings(typeof entry === 'string' ? entry : entry?.email, settings);
+      if (address !== settings.email && !state.provider.catchAllConfirmed) throw bad('Catch-All Hostinger belum dikonfirmasi. Aktifkan Catch-All ke inbox utama lalu centang konfirmasinya di Surat.', 409);
+      if (!state.inboxes.some(x => x.address === address)) {
+        const token = randomToken();
+        state.inboxes.unshift({ id: crypto.randomUUID(), tokenHash: tokenHash(token), address, label: address.split('@')[0], createdAt: new Date().toISOString(), expiresAt: '2099-12-31T23:59:59.000Z' });
+      }
+      added.push(address);
+    }
+    await save(req);
+    res.json({ code: 0, success: true, data: added, message: 'Mailbox users created' });
+  }));
+  router.post('/public/emailList', creator, handle(async (req, res) => {
+    const settings = imapSettings(req);
+    const address = addressForSettings(req.body.toEmail, settings);
+    const size = Math.min(50, Math.max(1, Number(req.body.size) || 20));
+    const messages = await listMessagesForApi(settings, address === settings.email ? null : address, size);
+    res.json({ code: 0, success: true, data: messages, items: messages, count: messages.length });
+  }));
+  router.all('/public/deleteUser', creator, handle(async (req, res) => {
+    const state = req.state;
+    const settings = imapSettings(req);
+    const candidate = req.query.email || req.body?.email || req.body?.emails?.[0] || (typeof req.body?.list?.[0] === 'string' ? req.body.list[0] : req.body?.list?.[0]?.email);
+    const address = addressForSettings(candidate, settings);
+    state.inboxes = state.inboxes.filter(x => x.address !== address);
+    await save(req);
+    res.json({ code: 0, success: true, message: 'Mailbox user deleted' });
   }));
   router.get(['/mails', '/parsed_mails'], addressReader, handle(async (req, res) => {
     const settings = imapSettings(req);

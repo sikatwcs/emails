@@ -89,7 +89,7 @@
               <div class="form-actions"><button class="secondary-button" type="submit">Simpan pengaturan API</button><button id="generate-provider-keys" class="primary-button" type="button">Buat token API</button></div>
             </form>
             <div id="provider-keys" class="created-link hidden"><span>KUNCI API BARU — SALIN SEKARANG</span><input id="provider-token" readonly><input id="provider-password" readonly><button id="copy-provider-keys" class="secondary-button" type="button">Salin token & password</button></div>
-            <p class="note-small">TOKEN_API_PUBLIK dipakai saat membuat alamat dengan <code>Authorization: Bearer ...</code>. PASSWORDS dikirim sebagai header <code>X-Custom-Auth</code>. Setelah alamat dibuat, web lain memakai token alamat yang dikembalikan sebagai Bearer untuk membaca email.</p>
+            <p class="note-small">Untuk SunnyRegister, isi URL API CloudMail dengan URL aplikasi Surat ini. Isi kolom URL API Pengambilan Publik di SunnyRegister dengan alamat SunnyRegister sendiri, bukan <code>/api/new_address</code>. TOKEN_API_PUBLIK dan PASSWORDS dipakai untuk autentikasi CloudMail.</p>
             <p id="cloudmail-note" class="form-note" role="status"></p>
           </section>
         </div>

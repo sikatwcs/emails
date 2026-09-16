@@ -53,6 +53,33 @@ export async function listMessages(settings, alias) {
   });
 }
 
+export async function listMessagesForApi(settings, alias, requestedLimit = 20) {
+  const limit = Math.min(50, Math.max(1, Number(requestedLimit) || 20));
+  return withImap(settings, async client => {
+    const all = await client.search({ all: true }, { uid: true });
+    const latest = all.slice(-100).reverse();
+    const result = [];
+    for (const uid of latest) {
+      const fetched = await client.fetchOne(uid, { source: true }, { uid: true });
+      if (!fetched?.source) continue;
+      const mail = await simpleParser(fetched.source);
+      if (!matchingMessage(mail, alias)) continue;
+      const text = String(mail.text || '').slice(0, 100000);
+      const html = typeof mail.html === 'string' ? mail.html.slice(0, 100000) : '';
+      const code = text.match(/(^|\D)(\d{6})(?!\d)/)?.[2] || '';
+      result.push({
+        ...item(mail, uid), id: uid, emailId: uid,
+        sender: mail.from?.text || '', recipient: mail.to?.text || alias || settings.email,
+        receivedAt: mail.date?.toISOString?.() || null,
+        text, body: text, html, bodyPreview: text.replace(/\s+/g, ' ').trim().slice(0, 500),
+        ...(code ? { verificationCode: code } : {})
+      });
+      if (result.length >= limit) break;
+    }
+    return result;
+  });
+}
+
 export async function readMessage(settings, alias, uid) {
   return withImap(settings, async client => {
     const fetched = await client.fetchOne(uid, { source: true }, { uid: true });

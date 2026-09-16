@@ -23,6 +23,14 @@ Buka **Pengaturan koneksi → API untuk web lain**, tekan **Buat token API**, la
 
 Web lain membuat alamat dengan `POST /api/new_address`, header `Authorization: Bearer TOKEN_API_PUBLIK`, header `X-Custom-Auth: PASSWORDS`, dan body opsional `{ "days": 7 }`. Respons mengembalikan `address` dan `jwt`; simpan `jwt` sebagai token alamat. Untuk mengambil pesan, kirim `Authorization: Bearer <jwt>` ke `GET /api/mails` atau `GET /api/parsed_mails`. Pesan tunggal tersedia di `/api/mails/<uid>` atau `/api/parsed_mail/<uid>`.
 
+### SunnyRegister
+
+Surat juga menyediakan endpoint kompatibilitas CloudMail yang dipakai SunnyRegister: `POST /api/public/emailList`, `POST /api/public/addUser`, dan `DELETE`/`POST /api/public/deleteUser`. SunnyRegister mengirim `TOKEN_API_PUBLIK` melalui header `Authorization` tanpa awalan `Bearer` dan `PASSWORDS` melalui `X-Custom-Auth`; keduanya didukung.
+
+Pada SunnyRegister, **CloudMail API URL** diisi URL dasar Surat, misalnya `https://emails-khaki.vercel.app`. **Public Pickup API URL** adalah URL dasar SunnyRegister sendiri karena SunnyRegister akan menambahkan `/api/sunny/domain-mail/pickup`; untuk instalasi Docker Compose lokal gunakan `http://sunnyregister:8000`. Jangan isi kolom itu dengan endpoint Surat `/api/new_address`.
+
+Alamat acak hanya dapat menerima email bila Catch-All domain di Hostinger telah diarahkan ke kotak surat utama dan opsi konfirmasinya sudah dicentang di Surat.
+
 API hanya membuat alamat acak bila Catch-All Hostinger sudah diverifikasi dan diarahkan ke inbox utama. Jika belum, tandai alamat sebagai alias yang sudah dibuat di Hostinger atau aktifkan Catch-All terlebih dahulu. Membuat token API tidak membuat alias Hostinger secara otomatis.
 
 ## Alias dan tautan inbox
