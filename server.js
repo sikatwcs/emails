@@ -223,7 +223,7 @@ app.use(express.static(path.join(root, 'public'), { maxAge: 0, index: false }));
 app.get(['/','/i/:token'], (_req, res) => res.sendFile(path.join(root, 'public', 'index.html')));
 app.use((error, _req, res, _next) => {
   const status = error.status || 502;
-  const message = status === 502 ? (error.source === 'storage' ? 'Penyimpanan data belum tersedia. Periksa koneksi Private Vercel Blob.' : 'Tidak bisa menghubungi server email. Periksa server IMAP, koneksi, dan kata sandi.') : error.message;
+  const message = status === 502 ? (error.source === 'storage' ? 'Penyimpanan data belum tersedia. Periksa koneksi Private Vercel Blob.' : error.publicMessage || 'Tidak bisa menghubungi server email. Periksa server IMAP, koneksi, dan kata sandi mailbox.') : error.message;
   res.status(status).json({ error: message });
 });
 

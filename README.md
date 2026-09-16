@@ -21,6 +21,8 @@ File BAT mencari Node.js yang ada di PATH, lalu memakai `C:\Program Files\nodejs
 
 Buka **Pengaturan koneksi → API untuk web lain**, tekan **Buat token API**, lalu salin `TOKEN_API_PUBLIK` dan `PASSWORDS`. URL yang perlu dimasukkan pada proyek lain adalah URL aplikasi Surat (misalnya `https://surat.domainanda.com`) dan URL pengambilan publiknya berakhiran `/api/new_address`.
 
+`PASSWORDS` adalah kunci API kedua yang dihasilkan oleh tombol **Buat token API**. Nilai ini bukan kata sandi login admin Surat dan bukan kata sandi akun email Hostinger.
+
 Web lain membuat alamat dengan `POST /api/new_address`, header `Authorization: Bearer TOKEN_API_PUBLIK`, header `X-Custom-Auth: PASSWORDS`, dan body opsional `{ "days": 7 }`. Respons mengembalikan `address` dan `jwt`; simpan `jwt` sebagai token alamat. Untuk mengambil pesan, kirim `Authorization: Bearer <jwt>` ke `GET /api/mails` atau `GET /api/parsed_mails`. Pesan tunggal tersedia di `/api/mails/<uid>` atau `/api/parsed_mail/<uid>`.
 
 ### SunnyRegister

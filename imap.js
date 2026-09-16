@@ -2,6 +2,17 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { matchingMessage } from './lib.js';
 
+export function imapPublicMessage(error) {
+  const details = [error?.serverResponseCode, error?.responseText, error?.message, error?.code].filter(Boolean).join(' ');
+  if (/AUTHENTICATIONFAILED|authentication failed|invalid credentials|login failed/i.test(details)) {
+    return 'Login IMAP ditolak oleh Hostinger. Periksa alamat mailbox dan gunakan kata sandi mailbox tersebut, bukan password hPanel atau password admin Surat.';
+  }
+  if (/ETIMEDOUT|ESOCKETTIMEDOUT|ECONNREFUSED|ENOTFOUND|timeout|timed out/i.test(details)) {
+    return 'Server IMAP Hostinger tidak dapat dijangkau. Periksa host, port, dan koneksi jaringan.';
+  }
+  return 'Tidak bisa menghubungi server email. Periksa server IMAP, koneksi, dan kata sandi mailbox.';
+}
+
 async function withImap(settings, callback) {
   const client = new ImapFlow({
     host: settings.host,
@@ -16,6 +27,10 @@ async function withImap(settings, callback) {
     await client.connect();
     await client.mailboxOpen('INBOX', { readOnly: true });
     return await callback(client);
+  } catch (error) {
+    error.source = 'imap';
+    error.publicMessage = imapPublicMessage(error);
+    throw error;
   } finally {
     if (client.usable) await client.logout().catch(() => {});
     else client.close();
