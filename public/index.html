@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Surat — inbox domain Anda</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Surat, beranda"><span class="brand-mark">✉</span><span>SURAT<span class="brand-dot">.</span></span></a>
+      <span class="header-caption">INBOX DOMAIN ANDA</span>
+      <button id="logout-btn" class="text-button hidden" type="button">Keluar</button>
+    </header>
+    <main>
+      <section id="login-view" class="login-card hidden">
+        <p class="eyebrow">PANEL PEMILIK</p>
+        <h1>Masuk ke kotak surat Anda.</h1>
+        <p class="muted">Atur koneksi Hostinger dan buat tautan inbox yang bisa dibuka di web.</p>
+        <form id="login-form">
+          <label>Kata sandi admin<input name="password" type="password" autocomplete="current-password" required></label>
+          <button class="primary-button" type="submit">Masuk</button>
+        </form>
+        <p id="login-error" class="error-text" role="alert"></p>
+      </section>
+
+      <section id="admin-view" class="hidden">
+        <div class="page-title">
+          <div><p class="eyebrow">PANEL PEMILIK / HOSTINGER</p><h1>Kotak surat, dalam kendali Anda.</h1><p class="muted">Baca pesan Hostinger dan bagikan tautan inbox untuk alamat yang sudah menerima email.</p></div>
+          <div id="connection-pill" class="connection-pill">Belum terhubung</div>
+        </div>
+        <nav class="tabs" aria-label="Bagian panel"><button id="tab-inboxes" class="tab active" type="button">Kotak surat</button><button id="tab-settings" class="tab" type="button">Pengaturan koneksi</button></nav>
+
+        <div id="inboxes-panel">
+          <div class="two-columns">
+            <section class="surface create-surface">
+              <div class="section-top"><span class="section-icon">↗</span><p class="eyebrow">TAUTAN INBOX</p></div>
+              <h2>Buka alamat email lewat tautan.</h2>
+              <p class="muted">Tautan seperti <code>/i/kunci-unik</code> dapat membuka pesan tanpa login admin.</p>
+              <form id="inbox-form">
+                <label>Alamat email atau alias di Hostinger<input name="address" type="email" placeholder="contoh@domainanda.com" required></label>
+                <button id="random-address" class="random-button" type="button">↻ Isi alamat acak untuk Catch-All</button>
+                <label>Nama inbox<input name="label" type="text" placeholder="Contoh: Inbox proyek" maxlength="80"></label>
+                <label>Masa berlaku tautan<select name="days"><option value="7">7 hari</option><option value="1">1 hari</option><option value="30">30 hari</option></select></label>
+                <button class="primary-button" type="submit">Buat tautan inbox <span aria-hidden="true">→</span></button>
+              </form>
+              <p id="inbox-form-note" class="form-note" role="status"></p>
+              <div id="created-link" class="created-link hidden"><span>TAUTAN BARU</span><input id="created-link-input" readonly><button id="copy-created-link" class="secondary-button" type="button">Salin tautan</button></div>
+            </section>
+            <aside class="surface note-surface">
+              <p class="eyebrow">CARA ALIAS BEKERJA</p>
+              <div class="flow-line"><span>01</span><p>Alamat alias dibuat atau diarahkan ke kotak surat Anda di Hostinger.</p></div>
+              <div class="flow-line"><span>02</span><p>Web ini membaca kotak surat tersebut lewat IMAP terenkripsi.</p></div>
+              <div class="flow-line"><span>03</span><p>Tautan inbox menampilkan pesan untuk alamat alias yang cocok.</p></div>
+              <p class="note-small">Membuat tautan di web ini tidak membuat alias baru di Hostinger. Buat alias atau Catch-All di hPanel terlebih dahulu.</p>
+            </aside>
+          </div>
+          <section class="surface list-surface"><div class="list-head"><div><p class="eyebrow">TAUTAN AKTIF</p><h2>Kotak surat Anda</h2></div><button id="reload-admin" class="secondary-button" type="button">Muat ulang</button></div><div id="inbox-list" class="inbox-list"></div></section>
+        </div>
+
+        <div id="settings-panel" class="hidden">
+          <section class="surface settings-surface">
+            <div class="settings-intro"><div><p class="eyebrow">SUMBER PESAN UTAMA</p><h2>Hostinger IMAP</h2><p class="muted">Isi akun email Hostinger yang sudah aktif. Web hanya membaca INBOX dan tidak menghapus pesan.</p></div><span class="provider-tag">AKTIF</span></div>
+            <form id="imap-form" class="settings-grid">
+              <label>Server IMAP<input name="host" value="imap.hostinger.com" required></label>
+              <label>Port SSL/TLS<input name="port" type="number" value="993" required></label>
+              <label class="wide">Alamat kotak surat utama<input name="email" type="email" placeholder="utama@domainanda.com" required></label>
+              <label class="wide">Kata sandi kotak surat<input name="password" type="password" placeholder="Isi saat pertama kali; kosongkan untuk mempertahankan" autocomplete="new-password"></label>
+              <div class="form-actions"><button class="primary-button" type="submit">Uji koneksi & simpan</button><button id="test-saved-imap" class="secondary-button" type="button">Uji koneksi tersimpan</button></div>
+            </form>
+            <p id="imap-note" class="form-note" role="status"></p>
+          </section>
+
+          <section class="surface settings-surface optional-surface">
+            <div class="settings-intro"><div><p class="eyebrow">API UNTUK WEB LAIN</p><h2>CloudMail / API publik Surat</h2><p class="muted">Web lain memakai URL dan kunci di bawah untuk membuat alamat serta membaca email Hostinger dari Surat.</p></div><span id="provider-status" class="provider-tag optional">BELUM SIAP</span></div>
+            <form id="cloudmail-form" class="settings-grid">
+              <label>URL API CloudMail<input name="apiUrl" type="url" readonly></label>
+              <label>URL API Pengambilan Publik<input name="publicUrl" type="url" readonly></label>
+              <label>Panjang bagian lokal<input name="localLength" type="number" min="3" max="50" value="12"></label>
+              <label class="checkbox-label"><input name="catchAllConfirmed" type="checkbox"> Catch-All Hostinger sudah aktif dan diarahkan ke inbox utama</label>
+              <label class="checkbox-label"><input name="autoMailboxUser" type="checkbox"> Buat alamat kotak surat secara otomatis</label>
+              <label class="checkbox-label"><input name="keepFailedMailbox" type="checkbox"> Pertahankan alamat yang gagal</label>
+              <label class="checkbox-label"><input name="useForSignup" type="checkbox"> Dipakai untuk pendaftaran akun</label>
+              <label class="checkbox-label"><input name="useForRebind" type="checkbox"> Dipakai untuk pengikatan ulang</label>
+              <div class="form-actions"><button class="secondary-button" type="submit">Simpan pengaturan API</button><button id="generate-provider-keys" class="primary-button" type="button">Buat token API</button></div>
+            </form>
+            <div id="provider-keys" class="created-link hidden"><span>KUNCI API BARU — SALIN SEKARANG</span><input id="provider-token" readonly><input id="provider-password" readonly><button id="copy-provider-keys" class="secondary-button" type="button">Salin token & password</button></div>
+            <p class="note-small">TOKEN_API_PUBLIK dipakai saat membuat alamat dengan <code>Authorization: Bearer ...</code>. PASSWORDS dikirim sebagai header <code>X-Custom-Auth</code>. Setelah alamat dibuat, web lain memakai token alamat yang dikembalikan sebagai Bearer untuk membaca email.</p>
+            <p id="cloudmail-note" class="form-note" role="status"></p>
+          </section>
+        </div>
+      </section>
+
+      <section id="public-view" class="hidden">
+        <div class="public-title"><div><p class="eyebrow">KOTAK SURAT / TAUTAN PRIBADI</p><h1 id="public-label">Inbox</h1><p id="public-address" class="email-address"></p></div><button id="refresh-public" class="secondary-button" type="button">↻ Muat ulang</button></div>
+        <div class="mail-layout"><section class="surface mail-list-surface"><div class="mail-list-head"><h2>Pesan masuk</h2><span id="mail-count">—</span></div><div id="mail-list" class="mail-list"></div></section><article class="surface mail-detail-surface"><div id="mail-detail" class="mail-placeholder"><span class="large-envelope">✉</span><h2>Pilih pesan untuk membaca.</h2><p>Pesan akan tampil di sini.</p></div></article></div>
+        <p id="public-expiry" class="expiry-line"></p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

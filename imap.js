@@ -1,0 +1,68 @@
+import { ImapFlow } from 'imapflow';
+import { simpleParser } from 'mailparser';
+import { matchingMessage } from './lib.js';
+
+async function withImap(settings, callback) {
+  const client = new ImapFlow({
+    host: settings.host,
+    port: Number(settings.port),
+    secure: true,
+    auth: { user: settings.email, pass: settings.password },
+    logger: false,
+    socketTimeout: 20000,
+    connectionTimeout: 15000
+  });
+  try {
+    await client.connect();
+    await client.mailboxOpen('INBOX', { readOnly: true });
+    return await callback(client);
+  } finally {
+    if (client.usable) await client.logout().catch(() => {});
+    else client.close();
+  }
+}
+
+function item(mail, uid) {
+  return {
+    uid,
+    from: mail.from?.text || '(pengirim tidak dikenal)',
+    to: mail.to?.text || '',
+    subject: mail.subject || '(tanpa subjek)',
+    date: mail.date?.toISOString?.() || null,
+    preview: String(mail.text || '').replace(/\s+/g, ' ').trim().slice(0, 150)
+  };
+}
+
+export async function testImap(settings) {
+  return withImap(settings, async client => ({ connected: true, mailbox: client.mailbox.path, exists: client.mailbox.exists }));
+}
+
+export async function listMessages(settings, alias) {
+  return withImap(settings, async client => {
+    const all = await client.search({ all: true }, { uid: true });
+    const latest = all.slice(-80).reverse();
+    const result = [];
+    for (const uid of latest) {
+      const fetched = await client.fetchOne(uid, { source: true }, { uid: true });
+      if (!fetched?.source) continue;
+      const mail = await simpleParser(fetched.source);
+      if (matchingMessage(mail, alias)) result.push(item(mail, uid));
+      if (result.length >= 40) break;
+    }
+    return result;
+  });
+}
+
+export async function readMessage(settings, alias, uid) {
+  return withImap(settings, async client => {
+    const fetched = await client.fetchOne(uid, { source: true }, { uid: true });
+    if (!fetched?.source) return null;
+    const mail = await simpleParser(fetched.source);
+    if (!matchingMessage(mail, alias)) return null;
+    return {
+      ...item(mail, uid),
+      text: String(mail.text || '').slice(0, 100000),
+      attachments: mail.attachments.map(a => ({ filename: a.filename || 'lampiran', size: a.size, contentType: a.contentType }))
+    };
+  });
+}
