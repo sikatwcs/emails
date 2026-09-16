@@ -5,7 +5,7 @@ import { get, put } from '@vercel/blob';
 const emptyState = () => ({ imap: null, cloudmail: {}, provider: {}, inboxes: [] });
 const fill = value => ({ ...emptyState(), ...(value || {}), cloudmail: value?.cloudmail || {}, provider: value?.provider || {}, inboxes: value?.inboxes || [] });
 
-export function createStore(root, { remote = process.env.VERCEL === '1', blobClient = { get, put } } = {}) {
+export function createStore(root, { remote = process.env.VERCEL === '1' || !!process.env.VERCEL_ENV || !!process.env.BLOB_READ_WRITE_TOKEN, blobClient = { get, put } } = {}) {
   if (remote) {
     const pathname = 'surat/private-state.json';
     const requireToken = () => {

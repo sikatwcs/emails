@@ -9,16 +9,15 @@ import { providerRouter } from './provider.js';
 import { createStore } from './storage.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
+const hosted = process.env.VERCEL === '1' || !!process.env.VERCEL_ENV || !!process.env.BLOB_READ_WRITE_TOKEN;
 const store = createStore(root);
 const adminPassword = process.env.ADMIN_PASSWORD;
+const adminConfigured = !!adminPassword && adminPassword !== 'isi_kata_sandi_admin_yang_panjang_dan_unik' && adminPassword.length >= 12;
 const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
 const publicUrl = process.env.PUBLIC_URL || (vercelHost ? `https://${vercelHost}` : `http://localhost:${process.env.PORT || 3000}`);
-const localNoLogin = process.env.VERCEL !== '1' && process.env.LOCAL_NO_LOGIN === '1' &&
+const localNoLogin = !hosted && process.env.LOCAL_NO_LOGIN === '1' &&
   (process.env.LISTEN_HOST || '127.0.0.1') === '127.0.0.1' &&
   /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(publicUrl);
-if (!adminPassword || adminPassword === 'isi_kata_sandi_admin_yang_panjang_dan_unik' || adminPassword.length < 12) {
-  throw new Error('Isi ADMIN_PASSWORD minimal 12 karakter di file .env sebelum menjalankan web.');
-}
 async function save(req) {
   try { await store.write(req.state, req.stateEtag); }
   catch (error) { error.source = 'storage'; throw error; }
@@ -32,6 +31,12 @@ function imapSettings(req) {
 
 const app = express();
 app.disable('x-powered-by');
+app.use((req, res, next) => {
+  if (adminConfigured) return next();
+  const message = 'ADMIN_PASSWORD belum siap. Isi kata sandi admin minimal 12 karakter pada Environment Variables Vercel, lalu Redeploy.';
+  if (req.path.startsWith('/api/')) return res.status(503).json({ error: message });
+  res.status(503).type('html').send(`<html lang="id"><meta charset="utf-8"><title>Surat belum siap</title><body style="font:18px system-ui;max-width:650px;margin:80px auto;padding:20px"><h1>Surat belum siap</h1><p>${message}</p></body></html>`);
+});
 app.use(express.json({ limit: '30kb' }));
 app.use('/api', async (req, _res, next) => {
   try {
@@ -222,7 +227,7 @@ app.use((error, _req, res, _next) => {
   res.status(status).json({ error: message });
 });
 
-if (process.env.VERCEL !== '1') {
+if (!hosted) {
   app.listen(Number(process.env.PORT || 3000), process.env.LISTEN_HOST || '127.0.0.1', () => {
     console.log(`Inbox web siap di http://localhost:${process.env.PORT || 3000}`);
   });
