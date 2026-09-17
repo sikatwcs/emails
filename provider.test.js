@@ -74,13 +74,14 @@ test('pembuatan alamat SunnyRegister ditolak sebelum Catch-All dikonfirmasi', as
   } finally { await f.close(); }
 });
 
-test('pembuatan dan penghapusan alamat SunnyRegister bekerja setelah Catch-All aktif', async () => {
+test('pembuatan dan penghapusan alamat SunnyRegister tidak menulis state bersama setelah Catch-All aktif', async () => {
   const f = await fixture();
   try {
     f.state.provider.catchAllConfirmed = true;
     let response = await f.request('/api/public/addUser', { list: [{ email: 'acak@example.com', password: 'unused' }] });
     assert.equal(response.status, 200);
-    assert.equal(f.state.inboxes[0].address, 'acak@example.com');
+    assert.deepEqual((await response.json()).data, ['acak@example.com']);
+    assert.equal(f.state.inboxes.length, 0);
 
     response = await f.request('/api/public/deleteUser', { email: 'acak@example.com' });
     assert.equal(response.status, 200);

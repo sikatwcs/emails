@@ -93,17 +93,12 @@ export function providerRouter({ save, mutateState, imapSettings, isAdmin, listM
     const list = Array.isArray(req.body.list) ? req.body.list : [];
     if (!list.length) throw bad('Daftar alamat email kosong.');
     const added = list.slice(0, 50).map(entry => addressForSettings(typeof entry === 'string' ? entry : entry?.email, settings));
-    await mutateState(state => {
-      if (added.some(address => address !== settings.email) && !state.provider.catchAllConfirmed) {
-        throw bad('Catch-All Hostinger belum dikonfirmasi. Aktifkan Catch-All ke inbox utama lalu centang konfirmasinya di Surat.', 409);
-      }
-      for (const address of added) {
-        if (!state.inboxes.some(x => x.address === address)) {
-          const token = randomToken();
-          state.inboxes.unshift({ id: crypto.randomUUID(), tokenHash: tokenHash(token), address, label: address.split('@')[0], createdAt: new Date().toISOString(), expiresAt: '2099-12-31T23:59:59.000Z' });
-        }
-      }
-    });
+    if (added.some(address => address !== settings.email) && !req.state.provider.catchAllConfirmed) {
+      throw bad('Catch-All Hostinger belum dikonfirmasi. Aktifkan Catch-All ke inbox utama lalu centang konfirmasinya di Surat.', 409);
+    }
+    // With Hostinger Catch-All there is no upstream mailbox account to create.
+    // SunnyRegister owns the generated-address records; Surat only validates the domain
+    // and reads messages for those recipients from the primary IMAP inbox.
     res.json({ code: 0, success: true, data: added, message: 'Mailbox users created' });
   }));
   router.post('/public/emailList', creator, handle(async (req, res) => {
@@ -116,8 +111,7 @@ export function providerRouter({ save, mutateState, imapSettings, isAdmin, listM
   router.all('/public/deleteUser', creator, handle(async (req, res) => {
     const settings = imapSettings(req);
     const candidate = req.query.email || req.body?.email || req.body?.emails?.[0] || (typeof req.body?.list?.[0] === 'string' ? req.body.list[0] : req.body?.list?.[0]?.email);
-    const address = addressForSettings(candidate, settings);
-    await mutateState(state => { state.inboxes = state.inboxes.filter(x => x.address !== address); });
+    addressForSettings(candidate, settings);
     res.json({ code: 0, success: true, message: 'Mailbox user deleted' });
   }));
   router.get(['/mails', '/parsed_mails'], addressReader, handle(async (req, res) => {
