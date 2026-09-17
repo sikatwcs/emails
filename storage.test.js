@@ -66,7 +66,7 @@ test('mutasi paralel Vercel Blob diulang tanpa kehilangan mailbox', async () => 
     }
   };
   const store = createStore('/unused', { remote: true, blobClient });
-  const mutate = createStateMutator(store, { attempts: 20, wait: () => Promise.resolve() });
+  const mutate = createStateMutator(store, { wait: () => Promise.resolve() });
   await Promise.all(Array.from({ length: 10 }, (_, index) => mutate(state => {
     state.inboxes.push({ id: `mailbox-${index}` });
   })));

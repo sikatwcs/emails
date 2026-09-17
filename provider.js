@@ -61,7 +61,7 @@ export function providerRouter({ save, mutateState, imapSettings, isAdmin, listM
   }));
   router.get('/status', (req, res) => {
     const state = req.state;
-    res.json({ service: 'Surat Hostinger API', ready: !!state.imap?.passwordEnc && !!state.provider.tokenHash, domains: state.imap ? [state.imap.email.split('@')[1]] : [], catchAllConfirmed: !!state.provider.catchAllConfirmed });
+    res.json({ service: 'Surat Hostinger API', ready: !!state.imap?.passwordEnc && !!state.provider.tokenHash, domains: state.imap ? [state.imap.email.split('@')[1]] : [], catchAllConfirmed: !!state.provider.catchAllConfirmed, release: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || null });
   });
 
   router.post('/new_address', creator, handle(async (req, res) => {

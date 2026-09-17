@@ -5,7 +5,7 @@ import { get, put } from '@vercel/blob';
 const emptyState = () => ({ imap: null, cloudmail: {}, provider: {}, inboxes: [] });
 const fill = value => ({ ...emptyState(), ...(value || {}), cloudmail: value?.cloudmail || {}, provider: value?.provider || {}, inboxes: value?.inboxes || [] });
 
-export function createStateMutator(store, { attempts = 8, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+export function createStateMutator(store, { attempts = 16, wait = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
   return async mutate => {
     let lastConflict;
     for (let attempt = 0; attempt < attempts; attempt++) {
@@ -17,7 +17,7 @@ export function createStateMutator(store, { attempts = 8, wait = ms => new Promi
       } catch (error) {
         if (error.status !== 409 || attempt === attempts - 1) throw error;
         lastConflict = error;
-        await wait(Math.min(160, 10 * (2 ** attempt)) + Math.floor(Math.random() * 10));
+        await wait(Math.min(100, 10 * (2 ** attempt)) + Math.floor(Math.random() * 10));
       }
     }
     throw lastConflict;
