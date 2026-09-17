@@ -6,11 +6,12 @@ import { fileURLToPath } from 'node:url';
 import { decrypt, encrypt, normalizeEmail, randomToken, safeEquals, tokenHash } from './lib.js';
 import { listMessages, listMessagesForApi, readMessage, testImap } from './imap.js';
 import { providerRouter } from './provider.js';
-import { createStore } from './storage.js';
+import { createStateMutator, createStore } from './storage.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const hosted = process.env.VERCEL === '1' || !!process.env.VERCEL_ENV || !!process.env.BLOB_READ_WRITE_TOKEN;
 const store = createStore(root);
+const mutateState = createStateMutator(store);
 const adminPassword = process.env.ADMIN_PASSWORD;
 const adminConfigured = !!adminPassword && adminPassword !== 'isi_kata_sandi_admin_yang_panjang_dan_unik' && adminPassword.length >= 12;
 const vercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
@@ -218,7 +219,7 @@ app.get('/api/inbox/:token/mail/:uid', publicLimit, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-app.use('/api', providerRouter({ save, imapSettings, isAdmin, listMessages, listMessagesForApi, readMessage, publicUrl }));
+app.use('/api', providerRouter({ save, mutateState, imapSettings, isAdmin, listMessages, listMessagesForApi, readMessage, publicUrl }));
 app.use(express.static(path.join(root, 'public'), { maxAge: 0, index: false }));
 app.get(['/','/i/:token'], (_req, res) => res.sendFile(path.join(root, 'public', 'index.html')));
 app.use((error, _req, res, _next) => {

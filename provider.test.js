@@ -24,6 +24,7 @@ async function fixture() {
   app.use((req, _res, next) => { req.state = state; next(); });
   app.use('/api', providerRouter({
     save: async () => {},
+    mutateState: async mutate => mutate(state),
     imapSettings: () => ({ email: state.imap.email }),
     isAdmin: () => false,
     listMessages: async () => [],

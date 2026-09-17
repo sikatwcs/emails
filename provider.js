@@ -4,7 +4,7 @@ import { normalizeEmail, randomToken, safeEquals, tokenHash } from './lib.js';
 
 const bad = (message, status = 400) => Object.assign(new Error(message), { status });
 
-export function providerRouter({ save, imapSettings, isAdmin, listMessages, listMessagesForApi, readMessage, publicUrl }) {
+export function providerRouter({ save, mutateState, imapSettings, isAdmin, listMessages, listMessagesForApi, readMessage, publicUrl }) {
   const router = express.Router();
   const base = String(publicUrl).replace(/\/$/, '');
   const admin = (req, res, next) => isAdmin(req) ? next() : res.status(401).json({ error: 'Masuk sebagai admin terlebih dahulu.' });
@@ -65,17 +65,14 @@ export function providerRouter({ save, imapSettings, isAdmin, listMessages, list
   });
 
   router.post('/new_address', creator, handle(async (req, res) => {
-    const state = req.state;
     const settings = imapSettings(req);
     const domain = settings.email.split('@')[1];
     let address;
     if (req.body.address) {
       address = normalizeEmail(req.body.address);
-      if (address !== settings.email && !state.provider.catchAllConfirmed && !state.inboxes.some(x => x.address === address)) throw bad('Alamat ini belum terdaftar. Tambahkan alias yang sudah aktif di panel Surat atau aktifkan Catch-All.', 409);
     } else {
-      if (!state.provider.catchAllConfirmed) throw bad('Aktifkan dan verifikasi Catch-All Hostinger ke inbox utama sebelum membuat alamat acak.', 409);
       const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-      const bytes = crypto.randomBytes(state.provider.localLength || 12);
+      const bytes = crypto.randomBytes(req.state.provider.localLength || 12);
       address = `${Array.from(bytes, x => chars[x % chars.length]).join('')}@${domain}`;
     }
     if (address.split('@')[1] !== domain) throw bad('Alamat harus memakai domain email Hostinger yang terhubung.');
@@ -83,26 +80,30 @@ export function providerRouter({ save, imapSettings, isAdmin, listMessages, list
     if (![1, 7, 30].includes(days)) throw bad('Masa berlaku alamat harus 1, 7, atau 30 hari.');
     const addressToken = randomToken();
     const inbox = { id: crypto.randomUUID(), tokenHash: tokenHash(addressToken), address, label: address.split('@')[0], createdAt: new Date().toISOString(), expiresAt: new Date(Date.now() + days * 86400000).toISOString() };
-    state.inboxes.unshift(inbox);
-    await save(req);
+    await mutateState(state => {
+      if (address !== settings.email && !state.provider.catchAllConfirmed && !state.inboxes.some(x => x.address === address)) {
+        throw bad(req.body.address ? 'Alamat ini belum terdaftar. Tambahkan alias yang sudah aktif di panel Surat atau aktifkan Catch-All.' : 'Aktifkan dan verifikasi Catch-All Hostinger ke inbox utama sebelum membuat alamat acak.', 409);
+      }
+      state.inboxes.unshift(inbox);
+    });
     res.status(201).json({ address, address_id: inbox.id, jwt: addressToken, inbox_url: `${base}/i/${addressToken}`, expires_at: inbox.expiresAt });
   }));
   router.post('/public/addUser', creator, handle(async (req, res) => {
-    const state = req.state;
     const settings = imapSettings(req);
     const list = Array.isArray(req.body.list) ? req.body.list : [];
     if (!list.length) throw bad('Daftar alamat email kosong.');
-    const added = [];
-    for (const entry of list.slice(0, 50)) {
-      const address = addressForSettings(typeof entry === 'string' ? entry : entry?.email, settings);
-      if (address !== settings.email && !state.provider.catchAllConfirmed) throw bad('Catch-All Hostinger belum dikonfirmasi. Aktifkan Catch-All ke inbox utama lalu centang konfirmasinya di Surat.', 409);
-      if (!state.inboxes.some(x => x.address === address)) {
-        const token = randomToken();
-        state.inboxes.unshift({ id: crypto.randomUUID(), tokenHash: tokenHash(token), address, label: address.split('@')[0], createdAt: new Date().toISOString(), expiresAt: '2099-12-31T23:59:59.000Z' });
+    const added = list.slice(0, 50).map(entry => addressForSettings(typeof entry === 'string' ? entry : entry?.email, settings));
+    await mutateState(state => {
+      if (added.some(address => address !== settings.email) && !state.provider.catchAllConfirmed) {
+        throw bad('Catch-All Hostinger belum dikonfirmasi. Aktifkan Catch-All ke inbox utama lalu centang konfirmasinya di Surat.', 409);
       }
-      added.push(address);
-    }
-    await save(req);
+      for (const address of added) {
+        if (!state.inboxes.some(x => x.address === address)) {
+          const token = randomToken();
+          state.inboxes.unshift({ id: crypto.randomUUID(), tokenHash: tokenHash(token), address, label: address.split('@')[0], createdAt: new Date().toISOString(), expiresAt: '2099-12-31T23:59:59.000Z' });
+        }
+      }
+    });
     res.json({ code: 0, success: true, data: added, message: 'Mailbox users created' });
   }));
   router.post('/public/emailList', creator, handle(async (req, res) => {
@@ -113,12 +114,10 @@ export function providerRouter({ save, imapSettings, isAdmin, listMessages, list
     res.json({ code: 0, success: true, data: messages, items: messages, count: messages.length });
   }));
   router.all('/public/deleteUser', creator, handle(async (req, res) => {
-    const state = req.state;
     const settings = imapSettings(req);
     const candidate = req.query.email || req.body?.email || req.body?.emails?.[0] || (typeof req.body?.list?.[0] === 'string' ? req.body.list[0] : req.body?.list?.[0]?.email);
     const address = addressForSettings(candidate, settings);
-    state.inboxes = state.inboxes.filter(x => x.address !== address);
-    await save(req);
+    await mutateState(state => { state.inboxes = state.inboxes.filter(x => x.address !== address); });
     res.json({ code: 0, success: true, message: 'Mailbox user deleted' });
   }));
   router.get(['/mails', '/parsed_mails'], addressReader, handle(async (req, res) => {
